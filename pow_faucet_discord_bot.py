@@ -32,8 +32,12 @@ LOCK_FILE = DATA_FILE + ".lock"
 # Optional: speed up slash-command sync by limiting to one guild during development
 GUILD_ID = os.environ.get("GUILD_ID", "").strip()
 
-# Optional: restrict commands to one channel
 ALLOWED_CHANNEL_ID = os.environ.get("ALLOWED_CHANNEL_ID", "").strip()
+
+# Optional: announce successful claims publicly in the channel (in addition to the ephemeral response)
+PUBLIC_CLAIM_ANNOUNCEMENTS = os.environ.get("PUBLIC_CLAIM_ANNOUNCEMENTS", "1").strip() == "1"
+# Optional: include a shortened address in public claim announcements (privacy-sensitive)
+PUBLIC_CLAIM_SHOW_ADDRESS = os.environ.get("PUBLIC_CLAIM_SHOW_ADDRESS", "0").strip() == "1"
 
 # Faucet address format (derived from sha256(secret).hexdigest()[:40])
 ADDR_RE = re.compile(r"^[0-9a-fA-F]{40}$")
@@ -194,6 +198,27 @@ bot = PowFaucetBot()
 # ---------------------------
 # Commands
 # ---------------------------
+
+# /help command
+@bot.tree.command(name="help", description="Show faucet bot commands.")
+async def help_cmd(interaction: discord.Interaction):
+    if not channel_allowed(interaction):
+        await interaction.response.send_message("This command is not allowed in this channel.", ephemeral=True)
+        return
+
+    text = (
+        "**PoW Faucet Bot – Commands**\n"
+        "• `/register_address <address>` – Register your 40-hex faucet address (no existence check).\n"
+        "• `/claim` – Claim 5 credits (24h cooldown).\n"
+        "• `/whoami` – Show your registered address + cooldown status.\n\n"
+        "Notes:\n"
+        "• Claims are rate-limited per Discord user (24h).\n"
+        "• If your address does not exist on the faucet yet, claims will fail.\n"
+    )
+
+    await interaction.response.send_message(text, ephemeral=True)
+
+
 @bot.tree.command(
     name="register_address",
     description="Register your faucet address (40 hex). No existence check."
@@ -321,6 +346,18 @@ async def claim(interaction: discord.Interaction):
 
     from_credits = resp.get("from_credits")
     to_credits = resp.get("to_credits")
+
+    # Optional public announcement (non-ephemeral) so others can see that someone claimed.
+    if PUBLIC_CLAIM_ANNOUNCEMENTS and interaction.channel is not None:
+        try:
+            extra = ""
+            if PUBLIC_CLAIM_SHOW_ADDRESS:
+                extra = f" (addr {to_addr[:6]}…{to_addr[-6:]})"
+            await interaction.channel.send(
+                f"🪙 {interaction.user.mention} claimed {FAUCET_AMOUNT} faucet credits{extra}."
+            )
+        except Exception:
+            pass
 
     await interaction.followup.send(
         f"Claim successful ✅ Sent **{FAUCET_AMOUNT} credits** to `{to_addr}`.\n"

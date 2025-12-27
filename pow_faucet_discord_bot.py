@@ -188,7 +188,7 @@ bot = PowFaucetBot()
 # ---------------------------
 @bot.tree.command(
     name="register_address",
-    description="Register your faucet address (40 hex). You are responsible that it exists / was created via PoW signup."
+    description="Register your faucet address (40 hex). No existence check."
 )
 @app_commands.describe(address="Your faucet address (40 hex characters)")
 async def register_address(interaction: discord.Interaction, address: str):
@@ -233,7 +233,7 @@ async def register_address(interaction: discord.Interaction, address: str):
     await interaction.followup.send(note, ephemeral=True)
 
 
-@bot.tree.command(name="claim", description="Claim faucet credits (5) once every 24 hours.")
+@bot.tree.command(name="claim", description="Claim 5 credits (24h cooldown).")
 async def claim(interaction: discord.Interaction):
     if not channel_allowed(interaction):
         await interaction.response.send_message("This command is not allowed in this channel.", ephemeral=True)

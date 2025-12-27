@@ -1,11 +1,19 @@
+
 import os
 import re
 import json
 import time
 from typing import Dict, Any, Optional
+
+from dotenv import load_dotenv
+
 import discord
 from discord import app_commands
 import aiohttp
+
+# Load environment variables from a local .env file (if present).
+# This must happen before reading DISCORD_TOKEN / other env vars.
+load_dotenv()
 
 
 # ---------------------------

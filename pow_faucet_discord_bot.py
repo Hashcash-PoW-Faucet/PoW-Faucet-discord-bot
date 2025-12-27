@@ -62,6 +62,12 @@ def normalize_addr(addr: str) -> str:
     return addr.lower()
 
 
+def ensure_parent_dir(path: str) -> None:
+    """Ensure the parent directory of `path` exists (no-op for relative paths without a directory)."""
+    d = os.path.dirname(os.path.abspath(path))
+    if d and not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
+
 # ---------------------------
 # Minimal file lock (Linux)
 # ---------------------------
@@ -72,6 +78,7 @@ class FileLock:
 
     def acquire(self):
         import fcntl
+        ensure_parent_dir(self.path)
         self._fd = open(self.path, "a+")
         fcntl.flock(self._fd.fileno(), fcntl.LOCK_EX)
 
@@ -101,6 +108,7 @@ def load_data() -> Dict[str, Any]:
 
 
 def save_data(data: Dict[str, Any]) -> None:
+    ensure_parent_dir(DATA_FILE)
     tmp = DATA_FILE + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)

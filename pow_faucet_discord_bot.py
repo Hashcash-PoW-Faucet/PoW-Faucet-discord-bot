@@ -1,4 +1,3 @@
-
 import os
 import re
 import json
@@ -23,8 +22,8 @@ DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN", "").strip()
 
 FAUCET_API_BASE = os.environ.get("FAUCET_API_BASE", "http://127.0.0.1:8000").rstrip("/")
 FAUCET_SENDER_SECRET = os.environ.get("FAUCET_SENDER_SECRET", "").strip()  # Secret of the funded faucet/source account
-FAUCET_AMOUNT = int(os.environ.get("FAUCET_AMOUNT", "5"))
-COOLDOWN_SECONDS = int(os.environ.get("FAUCET_COOLDOWN_SECONDS", str(24 * 3600)))
+FAUCET_AMOUNT = int(os.environ.get("FAUCET_AMOUNT", "4"))
+COOLDOWN_SECONDS = int(os.environ.get("FAUCET_COOLDOWN_SECONDS", str(2 * 3600)))
 
 DATA_FILE = os.environ.get("FAUCET_BOT_DATA", "discord_pow_faucet.json")
 LOCK_FILE = DATA_FILE + ".lock"
@@ -209,10 +208,10 @@ async def help_cmd(interaction: discord.Interaction):
     text = (
         "**PoW Faucet Bot – Commands**\n"
         "• `/register_address <address>` – Register your 40-hex faucet address (no existence check).\n"
-        "• `/claim` – Claim 5 credits (24h cooldown).\n"
+        "• `/claim` – Claim 4 credits (2 h cooldown).\n"
         "• `/whoami` – Show your registered address + cooldown status.\n\n"
         "Notes:\n"
-        "• Claims are rate-limited per Discord user (24h).\n"
+        "• Claims are rate-limited per Discord user (2h).\n"
         "• If your address does not exist on the faucet yet, claims will fail.\n"
     )
 
@@ -260,13 +259,13 @@ async def register_address(interaction: discord.Interaction, address: str):
     note = (
         "Registered ✅\n"
         f"Stored address: `{addr}`\n"
-        "Use `/claim` once every 24h.\n"
+        "Use `/claim` once every 2h.\n"
         "Note: If the address does not exist on the faucet yet, `/claim` will fail (unknown recipient)."
     )
     await interaction.followup.send(note, ephemeral=True)
 
 
-@bot.tree.command(name="claim", description="Claim 5 credits (24h cooldown).")
+@bot.tree.command(name="claim", description="Claim 4 credits (2 h cooldown).")
 async def claim(interaction: discord.Interaction):
     if not channel_allowed(interaction):
         await interaction.response.send_message("This command is not allowed in this channel.", ephemeral=True)
@@ -354,7 +353,7 @@ async def claim(interaction: discord.Interaction):
             if PUBLIC_CLAIM_SHOW_ADDRESS:
                 extra = f" (addr {to_addr[:6]}…{to_addr[-6:]})"
             await interaction.channel.send(
-                f"🪙 {interaction.user.mention} claimed {FAUCET_AMOUNT} faucet credits{extra}."
+                f"{interaction.user.mention} has claimed {FAUCET_AMOUNT} credits!{extra}"
             )
         except Exception:
             pass

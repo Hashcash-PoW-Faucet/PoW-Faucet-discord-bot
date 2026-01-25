@@ -211,7 +211,7 @@ async def help_cmd(interaction: discord.Interaction):
         "• `/claim` – Claim 4 credits (2 h cooldown).\n"
         "• `/whoami` – Show your registered address + cooldown status.\n\n"
         "Notes:\n"
-        "• Claims are rate-limited per Discord user (2h).\n"
+        "• Claims are rate-limited per Discord user (2 h).\n"
         "• If your address does not exist on the faucet yet, claims will fail.\n"
     )
 
@@ -259,7 +259,7 @@ async def register_address(interaction: discord.Interaction, address: str):
     note = (
         "Registered ✅\n"
         f"Stored address: `{addr}`\n"
-        "Use `/claim` once every 2h.\n"
+        "Use `/claim` once every 2 h.\n"
         "Note: If the address does not exist on the faucet yet, `/claim` will fail (unknown recipient)."
     )
     await interaction.followup.send(note, ephemeral=True)
@@ -360,7 +360,7 @@ async def claim(interaction: discord.Interaction):
 
     await interaction.followup.send(
         f"Claim successful ✅ Sent **{FAUCET_AMOUNT} credits** to `{to_addr}`.\n"
-        f"Source credits: `{from_credits}` | Your credits: `{to_credits}`",
+        f"Your credits: `{to_credits}`",
         ephemeral=True
     )
 

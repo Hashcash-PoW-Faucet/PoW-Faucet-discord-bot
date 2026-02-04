@@ -49,6 +49,16 @@ def now_ts() -> int:
     return int(time.time())
 
 
+# Helper: format duration as H:M:S
+def fmt_duration_hms(seconds: int) -> str:
+    """Format a duration in seconds as '<h>h <m>m <s>s'."""
+    seconds = max(0, int(seconds or 0))
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    return f"{h}h {m}m {s}s"
+
+
 def channel_allowed(interaction: discord.Interaction) -> bool:
     if not ALLOWED_CHANNEL_ID:
         return True
@@ -199,20 +209,20 @@ bot = PowFaucetBot()
 # ---------------------------
 
 # /help command
-@bot.tree.command(name="help", description="Show faucet bot commands.")
+@bot.tree.command(name="help", description="Show HCC Faucet Bot commands.")
 async def help_cmd(interaction: discord.Interaction):
     if not channel_allowed(interaction):
         await interaction.response.send_message("This command is not allowed in this channel.", ephemeral=True)
         return
 
     text = (
-        "**PoW Faucet Bot – Commands**\n"
-        "• `/register_address <address>` – Register your 40-hex faucet address (no existence check).\n"
-        "• `/claim` – Claim 4 credits (2 h cooldown).\n"
+        "** Commands**\n"
+        "• `/register_address <address>` – Register your 40-hex HCC address (no existence check).\n"
+        "• `/claim` – Claim 4 HCC (2 h cooldown).\n"
         "• `/whoami` – Show your registered address + cooldown status.\n\n"
         "Notes:\n"
-        "• Claims are rate-limited per Discord user (2 h).\n"
-        "• If your address does not exist on the faucet yet, claims will fail.\n"
+        "• Claims are rate-limited per Discord user (2h).\n"
+        "• If your address does not exist yet, claims will fail.\n"
     )
 
     await interaction.response.send_message(text, ephemeral=True)
@@ -220,9 +230,9 @@ async def help_cmd(interaction: discord.Interaction):
 
 @bot.tree.command(
     name="register_address",
-    description="Register your faucet address (40 hex). No existence check."
+    description="Register your HCC address (40 hex). No existence check."
 )
-@app_commands.describe(address="Your faucet address (40 hex characters)")
+@app_commands.describe(address="Your HCC address (40 hex characters)")
 async def register_address(interaction: discord.Interaction, address: str):
     if not channel_allowed(interaction):
         await interaction.response.send_message("This command is not allowed in this channel.", ephemeral=True)
@@ -242,7 +252,7 @@ async def register_address(interaction: discord.Interaction, address: str):
     # Bonus protection: do not allow registering the faucet sender address as target
     if bot.sender_address and addr == bot.sender_address:
         await interaction.followup.send(
-            "That address is the **faucet source/sender** address. Please register your own address.",
+            "That address is the **treasury source/sender** address. Please register your own address.",
             ephemeral=True
         )
         return
@@ -259,13 +269,13 @@ async def register_address(interaction: discord.Interaction, address: str):
     note = (
         "Registered ✅\n"
         f"Stored address: `{addr}`\n"
-        "Use `/claim` once every 2 h.\n"
-        "Note: If the address does not exist on the faucet yet, `/claim` will fail (unknown recipient)."
+        "Use `/claim` once every 2h.\n"
+        "Note: If the address does not exist yet, `/claim` will fail (unknown recipient)."
     )
     await interaction.followup.send(note, ephemeral=True)
 
 
-@bot.tree.command(name="claim", description="Claim 4 credits (2 h cooldown).")
+@bot.tree.command(name="claim", description="Claim 4 HCC (2 h cooldown).")
 async def claim(interaction: discord.Interaction):
     if not channel_allowed(interaction):
         await interaction.response.send_message("This command is not allowed in this channel.", ephemeral=True)
@@ -290,7 +300,7 @@ async def claim(interaction: discord.Interaction):
     # Bonus protection: do not allow claiming to sender address
     if bot.sender_address and to_addr == bot.sender_address:
         await interaction.followup.send(
-            "Safety check: your registered target address equals the faucet sender address. "
+            "Safety check: your registered target address equals the HCC faucet treasury address. "
             "Please register your own address again.",
             ephemeral=True
         )
@@ -301,12 +311,13 @@ async def claim(interaction: discord.Interaction):
     t = now_ts()
     if last_claim and t < last_claim + COOLDOWN_SECONDS:
         rem = (last_claim + COOLDOWN_SECONDS) - t
-        h = rem // 3600
-        m = (rem % 3600) // 60
-        await interaction.followup.send(f"Cooldown ⏳ Try again in ~{h}h {m}m.", ephemeral=True)
+        await interaction.followup.send(
+            f"Cooldown ⏳ Try again in ~{fmt_duration_hms(rem)}.",
+            ephemeral=True
+        )
         return
 
-    # Transfer credits using your existing /transfer endpoint
+    # Transfer HCC using your existing /transfer endpoint
     try:
         async with aiohttp.ClientSession() as session:
             resp = await api_transfer(session, FAUCET_SENDER_SECRET, to_addr, FAUCET_AMOUNT)
@@ -317,16 +328,16 @@ async def claim(interaction: discord.Interaction):
         # target address has not been created (or user mistyped it).
         if "unknown recipient address" in msg or "(404)" in msg:
             await interaction.followup.send(
-                "Claim failed: your address is **unknown** to the faucet server.\n"
+                "Claim failed: your address is **unknown** to the HCC server.\n"
                 "Make sure you created the account via PoW signup and you entered the correct 40-hex address.",
                 ephemeral=True
             )
             return
 
         # Insufficient faucet credits is also possible (400 insufficient credits)
-        if "insufficient credits" in msg or "(400)" in msg:
+        if "insufficient HCC balance of treasury" in msg or "(400)" in msg:
             await interaction.followup.send(
-                "Claim failed: faucet source has insufficient credits right now. Please try later.",
+                "Claim failed: Treasury has insufficient credits right now. Please try later.",
                 ephemeral=True
             )
             return
@@ -353,14 +364,14 @@ async def claim(interaction: discord.Interaction):
             if PUBLIC_CLAIM_SHOW_ADDRESS:
                 extra = f" (addr {to_addr[:6]}…{to_addr[-6:]})"
             await interaction.channel.send(
-                f"{interaction.user.mention} has claimed {FAUCET_AMOUNT} credits!{extra}"
+                f"{interaction.user.mention} has claimed {FAUCET_AMOUNT} HCC!{extra}"
             )
         except Exception:
             pass
 
     await interaction.followup.send(
-        f"Claim successful ✅ Sent **{FAUCET_AMOUNT} credits** to `{to_addr}`.\n"
-        f"Your credits: `{to_credits}`",
+        f"Claim successful ✅ Sent **{FAUCET_AMOUNT} HCC** to `{to_addr}`.\n"
+        f"Source balance: `{from_credits}` HCC | Your balance: `{to_credits}` HCC",
         ephemeral=True
     )
 
@@ -387,11 +398,11 @@ async def whoami(interaction: discord.Interaction):
         cd = "ready ✅"
     else:
         rem = (last_claim + COOLDOWN_SECONDS) - t
-        cd = f"~{rem//3600}h {(rem%3600)//60}m remaining"
+        cd = f"~{fmt_duration_hms(rem)} remaining"
 
     sender_info = ""
     if bot.sender_address:
-        sender_info = f"\nFaucet sender address (resolved): `{bot.sender_address}`"
+        sender_info = f"\nHCC faucet treasury address (resolved): `{bot.sender_address}`"
 
     await interaction.response.send_message(
         f"Your registered address: `{addr}`\nCooldown: {cd}{sender_info}",
